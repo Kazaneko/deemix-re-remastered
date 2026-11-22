@@ -19,6 +19,8 @@
     "build:linux-arm64": "rm -rf dist dist-electron && vite build && PATH=\"$PWD/scripts/build-tools:$PATH\" electron-builder --linux --arm64",
     "build:mac-arm64": "rm -rf dist dist-electron && vite build && APPLE_KEYCHAIN_PROFILE=strata-notary electron-builder --mac --arm64",
     "build:all": "rm -rf dist dist-electron && vite build && APPLE_KEYCHAIN_PROFILE=strata-notary electron-builder --mac --universal && APPLE_KEYCHAIN_PROFILE=strata-notary electron-builder --mac --arm64 && electron-builder --win --x64 && electron-builder --win --arm64 && PATH=\"$PWD/scripts/build-tools:$PATH\" electron-builder --linux --x64 && PATH=\"$PWD/scripts/build-tools:$PATH\" electron-builder --linux --arm64 && bun scripts/write-update-feeds.ts",
+    "build:headless": "rm -rf dist dist-electron && vite build && bun scripts/build-headless.ts",
+    "start:headless": "node dist-headless/server.js",
     "typecheck": "vue-tsc --noEmit",
     "preview": "vite preview",
     "electron:dev": "concurrently \"vite\" \"electron .\""
