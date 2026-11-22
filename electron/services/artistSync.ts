@@ -1,5 +1,5 @@
 import { EventEmitter } from 'events'
-import { app } from 'electron'
+import { userDataDir } from '../runtimePaths'
 import { join } from 'path'
 import { readFile } from 'fs/promises'
 import { deezerAuth } from './deezerAuth'
@@ -166,7 +166,7 @@ class ArtistSyncEngine extends EventEmitter {
   }
 
   private getStatePath(): string {
-    return join(app.getPath('userData'), 'artist-sync.json')
+    return join(userDataDir(), 'artist-sync.json')
   }
 
   async init(): Promise<void> {

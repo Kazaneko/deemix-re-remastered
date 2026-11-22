@@ -7,7 +7,7 @@
 //
 // Persisted as library-index.json in userData, written race-safe via safeWriteJson
 // + a serialized save-promise chain (same pattern as playlistSync/artistSync).
-import { app } from 'electron'
+import { userDataDir } from '../runtimePaths'
 import { join, extname } from 'path'
 import * as fs from 'fs'
 import { readFile, readdir, stat } from 'fs/promises'
@@ -32,7 +32,7 @@ class LibraryIndex {
   private savePromise: Promise<void> = Promise.resolve()
 
   private getPath(): string {
-    return join(app.getPath('userData'), 'library-index.json')
+    return join(userDataDir(), 'library-index.json')
   }
 
   private norm(isrc: string): string {

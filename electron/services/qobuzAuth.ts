@@ -35,7 +35,7 @@ import crypto from 'crypto'
 import fs from 'fs'
 import path from 'path'
 import { EventEmitter } from 'events'
-import { app } from 'electron'
+import { userDataDir } from '../runtimePaths'
 import { logSafe } from './logSafe'
 
 const QOBUZ_API_BASE = 'https://www.qobuz.com/api.json/0.2'
@@ -141,7 +141,7 @@ class QobuzAuth extends EventEmitter {
   // app_id/secret candidates are public client credentials scraped from Qobuz's
   // own public web bundle — not user secrets — so a plain JSON cache is fine.
   private credsCachePath(): string {
-    return path.join(app.getPath('userData'), 'qobuz-app-creds.json')
+    return path.join(userDataDir(), 'qobuz-app-creds.json')
   }
 
   /** Set (or clear) user-supplied app credentials that override the auto-scrape.

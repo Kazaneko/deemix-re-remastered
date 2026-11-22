@@ -1,5 +1,5 @@
 import { EventEmitter } from 'events'
-import { app } from 'electron'
+import { userDataDir } from '../runtimePaths'
 import { join, dirname } from 'path'
 import { readFile, writeFile, mkdir, rename } from 'fs/promises'
 import { spotifyAPI, describeSpotifyError } from './spotifyAPI'
@@ -175,7 +175,7 @@ class PlaylistSyncEngine extends EventEmitter {
   }
 
   private getStatePath(): string {
-    return join(app.getPath('userData'), 'playlist-sync.json')
+    return join(userDataDir(), 'playlist-sync.json')
   }
 
   async init(): Promise<void> {
