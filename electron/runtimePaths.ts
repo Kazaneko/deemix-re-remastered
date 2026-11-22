@@ -25,3 +25,13 @@ export function userDataDir(): string {
   cachedUserDataDir = app.getPath('userData')
   return cachedUserDataDir
 }
+
+/**
+ * Folder holding the running bundle (main.js on desktop, server.js headless).
+ * Bun's bundler bakes __dirname in as the *source* folder at build time, so the
+ * headless entry exports the real location in DEEMIX_BUNDLE_DIR; desktop leaves
+ * it unset and keeps using the caller's __dirname exactly as before.
+ */
+export function bundleDir(fallback: string): string {
+  return process.env.DEEMIX_BUNDLE_DIR || fallback
+}

@@ -12,12 +12,15 @@
  *   DEEMIX_INSECURE_NO_AUTH=1 disable the password (trusted networks only)
  */
 import * as path from 'path'
-import { mkdirSync } from 'fs'
+import { existsSync, mkdirSync } from 'fs'
 
 // Backend modules resolve their storage folder lazily via runtimePaths.userDataDir(),
 // which reads this variable; set it before anything starts.
 const DATA_DIR = path.resolve(process.env.DEEMIX_DATA_DIR || './data')
 process.env.DEEMIX_DATA_DIR = DATA_DIR
+// Where this bundle really lives (Bun bakes __dirname in at build time).
+const BUNDLE_DIR = path.dirname(path.resolve(require.main?.filename || process.argv[1] || __filename))
+process.env.DEEMIX_BUNDLE_DIR = BUNDLE_DIR
 
 import { DeemixServer, setAllowedDownloadRoots } from '../server'
 import { bootstrapServer } from '../serverBootstrap'
@@ -45,7 +48,7 @@ async function main(): Promise<void> {
 
   const musicRoots = (process.env.DEEMIX_MUSIC_DIR || './music')
     .split(':').map(p => p.trim()).filter(Boolean).map(p => path.resolve(p))
-  const webDir = path.resolve(process.env.DEEMIX_WEB_DIR || path.join(__dirname, '..', 'dist'))
+  const webDir = path.resolve(process.env.DEEMIX_WEB_DIR || path.join(BUNDLE_DIR, '..', 'dist'))
   const trustProxy = process.env.DEEMIX_TRUST_PROXY === '1'
 
   const password = process.env.DEEMIX_PASSWORD || ''
@@ -115,6 +118,10 @@ async function main(): Promise<void> {
 
   console.log(`[Headless] deemix ${VERSION} listening on http://${host}:${port}`)
   console.log(`[Headless] data: ${DATA_DIR}  music: ${musicRoots.join(', ')}  web: ${webDir}`)
+  const workerFile = path.join(BUNDLE_DIR, 'decryptWorker.js')
+  if (existsSync(workerFile)) console.log(`[Headless] decrypt worker: ok (${workerFile})`)
+  else console.warn(`[Headless] decrypt worker: MISSING at ${workerFile}, decryption will run on the main thread`)
+  if (!existsSync(path.join(webDir, 'index.html'))) console.warn(`[Headless] web UI not found in ${webDir} (set DEEMIX_WEB_DIR)`)
   if (!auth) console.warn('[Headless] WARNING: password protection is DISABLED (DEEMIX_INSECURE_NO_AUTH=1).')
 
   let stopping = false

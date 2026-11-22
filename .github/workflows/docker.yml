@@ -96,8 +96,12 @@ jobs:
           curl -s -b jar --max-time 15 $B/headless/deezer-api/genre/0 | head -c 300 || true
           echo
 
-          echo "== decrypt worker bundle is shipped"
+          echo "== decrypt worker bundle is shipped and found by the server"
           docker exec deemix test -s dist-headless/decryptWorker.js
+          docker logs deemix 2>&1 | grep -q 'decrypt worker: ok'
+
+          echo "== static /res assets are served"
+          curl -fsS -b jar -o /dev/null $B/res/$(docker exec deemix sh -c 'ls dist/res | head -1') || echo "(no /res sample)"
 
           echo "== healthy, no crash"
           sleep 2

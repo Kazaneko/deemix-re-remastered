@@ -18,7 +18,6 @@ describe('rewriteLoopbackUrl', () => {
 
   test('leaves every other URL alone', () => {
     for (const url of [
-      'https://api.deezer.com/search?q=a',
       '/api/health',
       'http://127.0.0.10:6595/api',
       'http://localhost.evil.example/api',

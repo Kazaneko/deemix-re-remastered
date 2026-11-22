@@ -4,7 +4,7 @@ import { EventEmitter } from 'events'
 import * as https from 'https'
 import * as fs from 'fs'
 import { normalize, resolve, join, dirname } from 'path'
-import { userDataDir } from './runtimePaths'
+import { bundleDir, userDataDir } from './runtimePaths'
 import { deezerAuth, DeezerSession } from './services/deezerAuth'
 import { urlHasHost } from './utils/urlHost'
 import { downloader, DownloadProgress } from './services/downloader'
@@ -4036,7 +4036,7 @@ export class DeemixServer extends EventEmitter {
     // Try multiple locations for the file
     // In production (asar), __dirname is like /path/to/app.asar/dist-electron
     // So we need to go up one level to get to app.asar root, then into public
-    const appRoot = dirname(__dirname) // Goes from dist-electron to app root (or app.asar)
+    const appRoot = dirname(bundleDir(__dirname)) // Goes from dist-electron (or dist-headless) to app root (or app.asar)
     const possiblePaths = [
       // In production (asar): app.asar/public/res/...
       join(appRoot, 'public', path),
