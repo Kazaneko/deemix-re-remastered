@@ -2,6 +2,7 @@ import { Worker } from 'worker_threads'
 import * as os from 'os'
 import * as path from 'path'
 import { decryptTrackFile } from './deezerDecrypt'
+import { bundleDir } from '../runtimePaths'
 import type { DecryptJobMessage, DecryptReadyMessage, DecryptResultMessage } from '../workers/decryptWorker'
 
 /**
@@ -191,7 +192,7 @@ let sharedPool: DecryptPool | null = null
 export function getDecryptPool(): DecryptPool {
   if (!sharedPool) {
     const size = Math.max(1, Math.min(4, os.cpus().length - 1))
-    sharedPool = new DecryptPool(path.join(__dirname, 'decryptWorker.js'), size)
+    sharedPool = new DecryptPool(path.join(bundleDir(__dirname), 'decryptWorker.js'), size)
   }
   return sharedPool
 }

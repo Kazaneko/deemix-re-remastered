@@ -1253,5 +1253,11 @@
     "everyDay": "Once a day",
     "everyLaunch": "Only when the app opens",
     "everyNever": "Never"
+  },
+  "web": {
+    "tooManyAttempts": "Too many attempts. Wait a few minutes and try again.",
+    "serverFolderPrompt": "Folder on the server where downloads are saved:",
+    "folderNotFound": "This folder doesn't exist on the server or is outside the music folders ({roots}).",
+    "folderOnServer": "This is on the server, in: {path}"
   }
 }

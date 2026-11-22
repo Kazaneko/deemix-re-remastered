@@ -4,7 +4,7 @@ import { EventEmitter } from 'events'
 import * as https from 'https'
 import * as fs from 'fs'
 import { normalize, resolve, join, dirname } from 'path'
-import { app } from 'electron'
+import { bundleDir, userDataDir } from './runtimePaths'
 import { deezerAuth, DeezerSession } from './services/deezerAuth'
 import { urlHasHost } from './utils/urlHost'
 import { downloader, DownloadProgress } from './services/downloader'
@@ -26,7 +26,7 @@ const DISCOGRAPHY_FILE_CACHE_TTL = 24 * 60 * 60 * 1000 // 24 hours
 let _discographyCacheFile: string | null = null
 function getDiscographyCacheFile(): string {
   if (!_discographyCacheFile) {
-    _discographyCacheFile = join(app.getPath('userData'), 'discography-cache.json')
+    _discographyCacheFile = join(userDataDir(), 'discography-cache.json')
     console.log(`[Server] Discography cache file location: ${_discographyCacheFile}`)
   }
   return _discographyCacheFile
@@ -294,8 +294,26 @@ function validateQuality(quality: any): 'MP3_128' | 'MP3_320' | 'FLAC' {
   return validQualities.includes(quality) ? quality : 'MP3_320'
 }
 
+// Headless server only: when set, download paths must live under one of these
+// folders (the mounted music volume). Desktop leaves it null: unchanged rules.
+let allowedDownloadRoots: string[] | null = null
+
+export function setAllowedDownloadRoots(roots: string[] | null): void {
+  allowedDownloadRoots = roots && roots.length ? roots.map(r => normalize(resolve(r))) : null
+}
+
+export function isUnderAllowedDownloadRoot(pathStr: string): boolean {
+  if (!allowedDownloadRoots) return true
+  const p = normalize(resolve(pathStr))
+  return allowedDownloadRoots.some(root => p === root || p.startsWith(root.endsWith('/') ? root : root + '/'))
+}
+
 function validateDownloadPath(pathStr: string): boolean {
   if (!pathStr || typeof pathStr !== 'string') return false
+  if (!isUnderAllowedDownloadRoot(pathStr)) {
+    console.warn('[Security] Path is outside the allowed download folders:', logSafe(pathStr))
+    return false
+  }
 
   // Check for path traversal patterns
   if (pathStr.includes('..')) return false
@@ -446,10 +464,21 @@ interface ServerSettings {
   // executeAfterDownload removed - security risk (arbitrary command execution)
 }
 
+/**
+ * Optional front door used by the headless server (electron/headless/): it
+ * authenticates every request and serves the web UI. Returns true when it has
+ * fully answered the request; false lets the normal API routing continue.
+ * Not set on desktop, where only localhost may connect.
+ */
+export interface RemoteAccessHandler {
+  handle(req: IncomingMessage, res: ServerResponse, url: URL): Promise<boolean>
+}
+
 export class DeemixServer extends EventEmitter {
   private host: string
   private port: number
   private server: Server | null = null
+  private remote: RemoteAccessHandler | null = null
   private settings: ServerSettings = {
     downloadPath: (process.env.HOME || process.env.USERPROFILE || '.') + (process.platform === 'win32' ? '\\Music\\Deemix' : '/Music/Deemix'),
     quality: 'MP3_320',
@@ -629,6 +658,11 @@ export class DeemixServer extends EventEmitter {
     return this.port
   }
 
+  /** Headless mode: accept remote clients through `handler` (auth + web UI). */
+  setRemoteAccess(handler: RemoteAccessHandler | null): void {
+    this.remote = handler
+  }
+
   // Security: Determine operation type for per-operation rate limiting
   private getOperationType(path: string): OperationType {
     if (path.startsWith('/api/auth/')) {
@@ -650,39 +684,44 @@ export class DeemixServer extends EventEmitter {
   }
 
   private async handleRequest(req: IncomingMessage, res: ServerResponse): Promise<void> {
-    // Security: Only allow requests from localhost
     const remoteAddress = req.socket.remoteAddress || ''
-    const isLocalhost = remoteAddress === '127.0.0.1' ||
-                        remoteAddress === '::1' ||
-                        remoteAddress === '::ffff:127.0.0.1'
+    const remote = this.remote
 
-    if (!isLocalhost) {
-      console.warn('[Security] Blocked request from non-localhost:', remoteAddress)
-      res.writeHead(403)
-      res.end('Forbidden')
-      return
-    }
+    // Desktop: localhost-only + CORS for the Electron renderer. Headless mode
+    // replaces both with the remote handler's password check (same-origin UI).
+    if (!remote) {
+      const isLocalhost = remoteAddress === '127.0.0.1' ||
+                          remoteAddress === '::1' ||
+                          remoteAddress === '::ffff:127.0.0.1'
 
-    // Enable CORS - restrict to known localhost origins only
-    // This prevents DNS rebinding attacks even though we restrict to localhost connections
-    // Note: Electron file:// sends Origin: "null" (string) or no origin header
-    const origin = req.headers.origin || ''
-    const allowedOrigins = [
-      'http://localhost:5173',
-      'http://127.0.0.1:5173',
-      `http://localhost:${this.port}`,
-      `http://127.0.0.1:${this.port}`
-    ]
-    if (allowedOrigins.includes(origin)) {
-      res.setHeader('Access-Control-Allow-Origin', origin)
-    } else if (origin === '' || origin === 'null' || origin.startsWith('file://')) {
-      // Electron production mode: file:// pages send "null" or empty origin
-      // Safe because localhost binding already restricts access
-      res.setHeader('Access-Control-Allow-Origin', '*')
+      if (!isLocalhost) {
+        console.warn('[Security] Blocked request from non-localhost:', remoteAddress)
+        res.writeHead(403)
+        res.end('Forbidden')
+        return
+      }
+
+      // Enable CORS - restrict to known localhost origins only
+      // This prevents DNS rebinding attacks even though we restrict to localhost connections
+      // Note: Electron file:// sends Origin: "null" (string) or no origin header
+      const origin = req.headers.origin || ''
+      const allowedOrigins = [
+        'http://localhost:5173',
+        'http://127.0.0.1:5173',
+        `http://localhost:${this.port}`,
+        `http://127.0.0.1:${this.port}`
+      ]
+      if (allowedOrigins.includes(origin)) {
+        res.setHeader('Access-Control-Allow-Origin', origin)
+      } else if (origin === '' || origin === 'null' || origin.startsWith('file://')) {
+        // Electron production mode: file:// pages send "null" or empty origin
+        // Safe because localhost binding already restricts access
+        res.setHeader('Access-Control-Allow-Origin', '*')
+      }
+      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, OPTIONS')
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
+      res.setHeader('Access-Control-Allow-Credentials', 'true')
     }
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, OPTIONS')
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
-    res.setHeader('Access-Control-Allow-Credentials', 'true')
 
     // Security headers
     res.setHeader('X-Content-Type-Options', 'nosniff')
@@ -699,6 +738,12 @@ export class DeemixServer extends EventEmitter {
 
     const url = new URL(req.url || '/', `http://${this.host}:${this.port}`)
     const path = url.pathname
+
+    // Headless: authentication, web UI and /headless/* routes. Runs before rate
+    // limiting so loading the UI's assets doesn't eat the API budget.
+    if (remote && await remote.handle(req, res, url)) {
+      return
+    }
 
     // Security: Per-operation rate limiting
     const operationType = this.getOperationType(path)
@@ -3991,7 +4036,7 @@ export class DeemixServer extends EventEmitter {
     // Try multiple locations for the file
     // In production (asar), __dirname is like /path/to/app.asar/dist-electron
     // So we need to go up one level to get to app.asar root, then into public
-    const appRoot = dirname(__dirname) // Goes from dist-electron to app root (or app.asar)
+    const appRoot = dirname(bundleDir(__dirname)) // Goes from dist-electron (or dist-headless) to app root (or app.asar)
     const possiblePaths = [
       // In production (asar): app.asar/public/res/...
       join(appRoot, 'public', path),

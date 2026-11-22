@@ -1253,5 +1253,11 @@
     "everyDay": "Une fois par jour",
     "everyLaunch": "Seulement à l'ouverture de l'application",
     "everyNever": "Jamais"
+  },
+  "web": {
+    "tooManyAttempts": "Trop de tentatives. Patientez quelques minutes puis réessayez.",
+    "serverFolderPrompt": "Dossier du serveur où les téléchargements sont enregistrés :",
+    "folderNotFound": "Ce dossier n'existe pas sur le serveur ou se trouve en dehors des dossiers de musique ({roots}).",
+    "folderOnServer": "Cet élément se trouve sur le serveur, dans : {path}"
   }
 }

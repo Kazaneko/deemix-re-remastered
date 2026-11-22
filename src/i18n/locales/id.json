@@ -1253,5 +1253,11 @@
     "everyDay": "Sekali sehari",
     "everyLaunch": "Hanya saat aplikasi dibuka",
     "everyNever": "Tidak pernah"
+  },
+  "web": {
+    "tooManyAttempts": "Terlalu banyak percobaan. Tunggu beberapa menit lalu coba lagi.",
+    "serverFolderPrompt": "Folder di server tempat unduhan disimpan:",
+    "folderNotFound": "Folder ini tidak ada di server atau berada di luar folder musik ({roots}).",
+    "folderOnServer": "Ini ada di server, di: {path}"
   }
 }

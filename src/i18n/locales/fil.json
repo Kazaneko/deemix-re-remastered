@@ -1253,5 +1253,11 @@
     "everyDay": "Isang beses sa isang araw",
     "everyLaunch": "Kapag binuksan lang ang app",
     "everyNever": "Hindi kailanman"
+  },
+  "web": {
+    "tooManyAttempts": "Masyadong maraming pagsubok. Maghintay ng ilang minuto at subukang muli.",
+    "serverFolderPrompt": "Folder sa server kung saan sine-save ang mga download:",
+    "folderNotFound": "Wala ang folder na ito sa server o nasa labas ito ng mga music folder ({roots}).",
+    "folderOnServer": "Nasa server ito, sa: {path}"
   }
 }

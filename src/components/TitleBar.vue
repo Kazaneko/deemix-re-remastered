@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { isHeadlessWeb } from '../web/webBridge'
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '../stores/authStore'
@@ -24,7 +25,9 @@ const detectPlatform = (): boolean => {
   return false
 }
 
-const isMac = detectPlatform()
+// Web UI (headless server): a browser tab has no app window to control.
+const isWeb = isHeadlessWeb()
+const isMac = detectPlatform() && !isWeb
 
 // On Linux the window is natively framed (#125, for WM snapping), so the OS
 // draws the title bar and window buttons — hide our custom ones to avoid a
@@ -146,7 +149,7 @@ const close = () => window.electronAPI?.close()
 
     <!-- Window controls (Windows only — Mac shows native traffic lights, Linux
          is natively framed for WM snapping so the OS draws these). -->
-    <div v-if="!isMac && !isLinux" class="flex items-center h-full no-drag" role="group" :aria-label="t('accessibility.windowControls')">
+    <div v-if="!isMac && !isLinux && !isWeb" class="flex items-center h-full no-drag" role="group" :aria-label="t('accessibility.windowControls')">
       <button
         @click="minimize"
         :aria-label="t('accessibility.minimizeWindow')"

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { isHeadlessWeb } from '../web/webBridge'
 import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '../stores/authStore'
@@ -20,6 +21,7 @@ const authStore = useAuthStore()
 // Login method tabs
 type LoginMethod = 'email' | 'arl'
 const loginMethod = ref<LoginMethod>('email')
+const isWeb = isHeadlessWeb()
 
 // Email/password form
 const email = ref('')
@@ -199,8 +201,9 @@ function openDeezerExternal() {
           <!-- CAPTCHA View - Browser Login -->
           <template v-if="authStore.captchaRequired">
             <div class="space-y-4">
-              <!-- Browser Login Button -->
+              <!-- Browser Login Button (desktop only: needs an app window) -->
               <button
+                v-if="!isWeb"
                 type="button"
                 @click="handleBrowserLogin"
                 :disabled="isBrowserLoginLoading"

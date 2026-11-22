@@ -1,0 +1,147 @@
+name: Docker (headless)
+
+# Builds the headless image, starts it and smoke-tests it over HTTP on every
+# push and PR. Publishes to ghcr.io/<owner>/<repo>: `latest` from main, semver
+# from v* tags, and a branch-named tag from feature/** (for testing on a server
+# before merging; never `latest`).
+
+on:
+  push:
+    branches: [main, 'fix/**', 'feature/**']
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  IMAGE: ghcr.io/${{ github.repository }}
+
+jobs:
+  image:
+    name: Build, smoke test, publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Lower-case image name
+        run: echo "IMAGE=${IMAGE,,}" >> "$GITHUB_ENV"
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build image (local)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: deemix-headless:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Smoke test
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/data" "$RUNNER_TEMP/music"
+          sudo chown 1000:1000 "$RUNNER_TEMP/data" "$RUNNER_TEMP/music"
+          docker run -d --name deemix -p 6595:6595 \
+            -e DEEMIX_PASSWORD=ci-password-123 \
+            -v "$RUNNER_TEMP/data:/data" -v "$RUNNER_TEMP/music:/music" \
+            deemix-headless:ci
+
+          for i in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:6595/headless/session >/dev/null 2>&1 && break
+            sleep 1
+          done
+          B=http://127.0.0.1:6595
+          docker logs deemix
+
+          echo "== runs as non-root"
+          test "$(docker exec deemix id -u)" != "0"
+
+          echo "== web UI is served with the headless marker"
+          curl -fsS $B/ | grep -q 'name="deemix-headless"'
+
+          echo "== API is closed without a session"
+          code=$(curl -s -o /dev/null -w '%{http_code}' $B/api/health)
+          test "$code" = "401"
+
+          echo "== wrong password refused"
+          code=$(curl -s -o /dev/null -w '%{http_code}' -H 'Content-Type: application/json' -d '{"password":"nope"}' $B/headless/login)
+          test "$code" = "401"
+
+          echo "== login, then the API answers"
+          curl -fsS -c jar -H 'Content-Type: application/json' -d '{"password":"ci-password-123"}' $B/headless/login | grep -q '"success":true'
+          curl -fsS -b jar $B/api/health | grep -q '"status":"ok"'
+          curl -fsS -b jar $B/headless/info | grep -q '"musicRoots":\["/music"\]'
+          curl -fsS -b jar $B/api/settings | grep -q '"downloadPath":"/music"'
+
+          echo "== settings persist to the data volume with private permissions"
+          curl -fsS -b jar -H 'Content-Type: application/json' -d '{"settings":{"quality":"FLAC"}}' $B/headless/storage/saveSettings | grep -q true
+          test "$(stat -c %a "$RUNNER_TEMP/data/settings.json")" = "600"
+
+          echo "== downloads cannot be pointed outside /music"
+          curl -fsS -b jar -H 'Content-Type: application/json' -d '{"downloadPath":"/tmp"}' $B/api/settings >/dev/null
+          curl -fsS -b jar $B/api/settings | grep -q '"downloadPath":"/music"'
+
+          echo "== event stream opens (SSE never ends on its own: curl times out by design)"
+          curl -s -b jar -N --max-time 3 -D sse-headers -o sse-body $B/headless/events || true
+          grep -qi '^content-type: text/event-stream' sse-headers
+          grep -q '^retry:' sse-body
+
+          echo "== Deezer API relay (informational: Deezer may block CI IPs)"
+          curl -s -b jar --max-time 15 $B/headless/deezer-api/genre/0 | head -c 300 || true
+          echo
+
+          echo "== decrypt worker bundle is shipped and found by the server"
+          docker exec deemix test -s dist-headless/decryptWorker.js
+          docker logs deemix 2>&1 | grep -q 'decrypt worker: ok'
+
+          echo "== static /res assets are served"
+          curl -fsS -b jar -o /dev/null $B/res/$(docker exec deemix sh -c 'ls dist/res | head -1') || echo "(no /res sample)"
+
+          echo "== healthy, no crash"
+          sleep 2
+          test "$(docker inspect -f '{{.State.Running}}' deemix)" = "true"
+          docker logs deemix 2>&1 | tail -20
+
+      - name: Container logs on failure
+        if: failure()
+        run: docker logs deemix || true
+
+      - name: Image metadata
+        id: meta
+        if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/heads/feature/'))
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=ref,event=branch,enable=${{ startsWith(github.ref, 'refs/heads/feature/') }}
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,format=short
+
+      - name: Log in to GHCR
+        if: steps.meta.outcome == 'success'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish
+        if: steps.meta.outcome == 'success'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha

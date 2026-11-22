@@ -1253,5 +1253,11 @@
     "everyDay": "Mỗi ngày một lần",
     "everyLaunch": "Chỉ khi mở ứng dụng",
     "everyNever": "Không bao giờ"
+  },
+  "web": {
+    "tooManyAttempts": "Quá nhiều lần thử. Hãy đợi vài phút rồi thử lại.",
+    "serverFolderPrompt": "Thư mục trên máy chủ dùng để lưu bản tải xuống:",
+    "folderNotFound": "Thư mục này không tồn tại trên máy chủ hoặc nằm ngoài các thư mục nhạc ({roots}).",
+    "folderOnServer": "Mục này nằm trên máy chủ, tại: {path}"
   }
 }

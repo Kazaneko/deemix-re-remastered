@@ -1,0 +1,22 @@
+# Headless deemix on a home server. Copy to docker-compose.yml, put the
+# password in a .env file next to it (DEEMIX_PASSWORD=...), then:
+#   docker compose up -d
+# and open http://<server-ip>:6595 from the LAN or over your VPN.
+# Do not forward this port on your router: see docs/HEADLESS.md.
+services:
+  deemix:
+    image: ghcr.io/kazaneko/deemix-re-remastered:latest
+    container_name: deemix
+    restart: unless-stopped
+    # Same uid:gid as the owner of the music folder on the host.
+    user: "1000:1000"
+    ports:
+      - "6595:6595"
+    environment:
+      DEEMIX_PASSWORD: ${DEEMIX_PASSWORD:?set DEEMIX_PASSWORD in .env}
+      TZ: Europe/Rome
+      # Behind a reverse proxy (Caddy, Traefik...) that sets X-Forwarded-*:
+      # DEEMIX_TRUST_PROXY: "1"
+    volumes:
+      - ./data:/data              # settings, credentials (0600), sync state
+      - /srv/media/music:/music   # downloads land here
