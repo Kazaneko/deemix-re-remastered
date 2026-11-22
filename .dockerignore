@@ -1,0 +1,13 @@
+.git
+.github
+node_modules
+dist
+dist-electron
+dist-headless
+release
+data
+music
+*.log
+.env
+.env.*
+docker-compose*.yml

@@ -7,6 +7,9 @@
 > GitHub Actions (`.github/workflows/release.yml`, push di un tag `v*`).
 >
 > Nota: l'auto-update dell'app punta ancora alle release upstream; aggiornando da lì si perde la correzione.
+>
+> **Modalità headless**: il backend può girare su un server (Docker, Node puro) con l'interfaccia
+> web su `http://<ip>:6595` protetta da password. Vedi [docs/HEADLESS.md](docs/HEADLESS.md).
 
 <p align="center">
   <img src="docs/banner.png" alt="Deemix Remastered" width="800" />
