@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, 'fix/**']
   pull_request:
     branches: [main]
 
@@ -31,6 +31,9 @@ jobs:
 
       - name: Typecheck
         run: bun run typecheck
+
+      - name: Unit tests
+        run: bun test
 
       - name: Localization parity and hard-coded string check
         run: bun scripts/i18n-check.ts

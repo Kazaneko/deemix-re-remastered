@@ -1,0 +1,91 @@
+name: Release
+
+# Builds unsigned Linux and Windows installers and attaches them to a DRAFT
+# GitHub release. Trigger by pushing a tag (git tag v2.6.6-kz1 && git push --tags)
+# or manually from the Actions tab (artifacts only, no release).
+#
+# macOS is intentionally skipped: upstream builds are signed + notarized with a
+# Developer ID that this fork does not have.
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build (${{ matrix.name }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: linux-x64
+            os: ubuntu-latest
+            target: --linux AppImage deb --x64
+          - name: windows-x64
+            os: windows-latest
+            target: --win nsis portable --x64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Unit tests
+        run: bun test
+
+      - name: Build renderer + electron bundles
+        run: bun run build:vite
+
+      - name: Check decrypt worker bundle exists
+        shell: bash
+        run: test -s dist-electron/decryptWorker.js
+
+      - name: Package with electron-builder
+        shell: bash
+        run: bunx electron-builder ${{ matrix.target }} --publish never
+
+      - name: Upload installers
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.name }}
+          if-no-files-found: error
+          path: |
+            release/*.AppImage
+            release/*.deb
+            release/*.exe
+
+  release:
+    name: Draft GitHub release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download installers
+        uses: actions/download-artifact@v4
+        with:
+          path: dist-release
+          merge-multiple: true
+
+      - name: Create draft release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          ls -la dist-release
+          gh release create "$GITHUB_REF_NAME" dist-release/* \
+            --draft \
+            --title "$GITHUB_REF_NAME" \
+            --notes "Fork build: Deezer decryption moved to a worker thread so the UI no longer freezes while tracks finish. Unsigned Linux/Windows builds."

@@ -1,3 +1,13 @@
+> **Fork di [DRAZY/deemix-remastered](https://github.com/DRAZY/deemix-remastered)** con una correzione:
+> la decrittazione delle tracce Deezer (Blowfish in JS puro su tutto il file) girava nel processo
+> principale di Electron, che ospita anche il server locale interrogato dalla UI, e la bloccava per
+> secondi a ogni traccia. Ora gira in un pool di `worker_threads`
+> (`electron/services/decryptPool.ts`, `electron/workers/decryptWorker.ts`), con fallback automatico
+> al comportamento originale se i worker non partono. Build Linux/Windows non firmate da
+> GitHub Actions (`.github/workflows/release.yml`, push di un tag `v*`).
+>
+> Nota: l'auto-update dell'app punta ancora alle release upstream; aggiornando da lì si perde la correzione.
+
 <p align="center">
   <img src="docs/banner.png" alt="Deemix Remastered" width="800" />
 </p>
