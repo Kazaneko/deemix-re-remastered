@@ -3,7 +3,6 @@ import * as fs from 'fs'
 import * as path from 'path'
 import * as https from 'https'
 import * as crypto from 'crypto'
-import { Blowfish } from 'egoroof-blowfish'
 import { deezerAuth } from './deezerAuth'
 import { applyMergeFromMeta, replayGainString, type ResolvedMeta, type RetagFields } from './retagger'
 import { libraryIndex } from './libraryIndex'
@@ -12,6 +11,7 @@ import { downloadQobuzTrack } from './qobuzDownloader'
 import { probeAudioFile, expectedContainer, isLowerTier } from './audioProbe'
 import { pinReleaseFields } from './albumContext'
 import { logSafe } from './logSafe'
+import { getDecryptPool } from './decryptPool'
 
 export interface FolderSettings {
   createPlaylistFolder: boolean
@@ -230,7 +230,6 @@ export interface DownloadProgress {
   skippedAsDuplicate?: boolean  // Completed by being skipped as a library duplicate (by ISRC)
 }
 
-const BLOWFISH_KEY = 'g4el58wc0zvf9na1'
 
 // Custom error class with additional metadata for better error reporting
 class DownloadError extends Error {
@@ -2641,95 +2640,16 @@ export class Downloader extends EventEmitter {
     })
   }
 
+  /**
+   * Decrypt a downloaded Deezer stream. The CPU-heavy Blowfish pass and the
+   * whole-file read/write run on a worker thread (see decryptPool.ts) so the
+   * main process — which also hosts the local API server the UI polls — stays
+   * responsive while tracks finish. Algorithm lives in deezerDecrypt.ts.
+   */
   private async decryptFile(inputPath: string, sngId: string, outputPath: string): Promise<string> {
     console.log(`[Downloader] Decrypting file for song ID: ${sngId}`)
-
-    // Generate blowfish key from song ID
-    const hash = crypto.createHash('md5').update(sngId, 'ascii').digest('hex')
-    const blowfishKey = Buffer.alloc(16)
-
-    for (let i = 0; i < 16; i++) {
-      blowfishKey[i] = hash.charCodeAt(i) ^ hash.charCodeAt(i + 16) ^ BLOWFISH_KEY.charCodeAt(i)
-    }
-
-    // Initialize Blowfish with the key (using pure JS implementation)
-    const bf = new Blowfish(blowfishKey, Blowfish.MODE.CBC, Blowfish.PADDING.NULL)
-    const iv = new Uint8Array([0, 1, 2, 3, 4, 5, 6, 7])
-    bf.setIv(iv)
-
-    const input = fs.readFileSync(inputPath)
-    const output = Buffer.alloc(input.length)
-
-    // Decrypt in 2048 byte chunks, every third chunk is encrypted
-    let chunkIndex = 0
-    let position = 0
-
-    while (position < input.length) {
-      const chunkSize = Math.min(2048, input.length - position)
-      const chunk = input.slice(position, position + chunkSize)
-
-      if (chunkIndex % 3 === 0 && chunkSize === 2048) {
-        // Decrypt this chunk with Blowfish CBC
-        let decrypted: Buffer
-        try {
-          // Reset IV for each chunk decryption
-          bf.setIv(iv)
-          decrypted = Buffer.from(bf.decode(chunk, Blowfish.TYPE.UINT8_ARRAY))
-        } catch (e: any) {
-          // Unreachable under the guard above: decode() only throws on a non-Buffer
-          // input, an unset IV, a length not divisible by 8, or a bad return-type
-          // enum — and `chunkSize === 2048` plus the setIv() two lines up rule out
-          // all four. Kept as a tripwire in case the chunking ever changes (streaming,
-          // a different stripe size).
-          //
-          // Rethrow rather than fall back to copying the chunk. Writing the still-
-          // ENCRYPTED bytes through would emit a file that reports a successful
-          // download but contains digital noise where audio should be — exactly the
-          // kind of silent corruption users can only detect by ear. The caller turns
-          // this into "Decryption error" and fails the download, and since the output
-          // file is written only after this loop finishes, no partial file survives.
-          console.error(`[Downloader] Chunk decryption failed at position ${position}:`, e.message)
-          throw new Error(`Chunk decryption failed at byte ${position}: ${e.message}`)
-        }
-        decrypted.copy(output, position)
-
-        // The Blowfish instance is built with PADDING.NULL, and that library's
-        // decode() strips trailing 0x00 bytes from the plaintext. So a 2048-byte
-        // stripe legitimately comes back at 2047 or 2046 — measured at ~0.4% of
-        // chunks, since MP3 frame data is full of nulls. This is not an error.
-        //
-        // It stays lossless only because the bytes stripped are zeros by
-        // definition and `output` came from Buffer.alloc, which zero-fills, so
-        // the gap already holds the right values. That makes the allocator above
-        // LOAD-BEARING, not a style choice: Buffer.allocUnsafe returns recycled
-        // memory and would scatter garbage bytes through the audio on ~1 chunk
-        // in 250 while still reporting a successful download — silent corruption
-        // that only shows up by ear.
-        //
-        // Verify rather than trust, so the coupling can't be broken silently.
-        // Runs only on a short decode, and decode() strips at most 7 bytes.
-        if (decrypted.length < chunkSize) {
-          for (let i = position + decrypted.length; i < position + chunkSize; i++) {
-            if (output[i] !== 0) {
-              throw new Error(
-                `Decrypt output buffer is not zero-filled at byte ${i}: PADDING.NULL ` +
-                `strips trailing nulls, so this buffer must come from Buffer.alloc, ` +
-                `never Buffer.allocUnsafe`
-              )
-            }
-          }
-        }
-      } else {
-        // Copy chunk as-is
-        chunk.copy(output, position)
-      }
-
-      position += chunkSize
-      chunkIndex++
-    }
-
-    console.log(`[Downloader] Decryption complete, writing to: ${outputPath}`)
-    fs.writeFileSync(outputPath, output)
+    await getDecryptPool().decrypt(inputPath, sngId, outputPath)
+    console.log(`[Downloader] Decryption complete, written to: ${outputPath}`)
     return outputPath
   }
 
