@@ -20,6 +20,22 @@ export default defineConfig({
         }
       },
       {
+        // Worker thread for Deezer decryption (electron/services/decryptPool.ts).
+        // Emitted as dist-electron/decryptWorker.js, next to main.js.
+        entry: 'electron/workers/decryptWorker.ts',
+        onstart() {
+          // Nothing to launch: main.js spawns it on demand.
+        },
+        vite: {
+          build: {
+            outDir: 'dist-electron',
+            rollupOptions: {
+              external: ['electron']
+            }
+          }
+        }
+      },
+      {
         entry: 'electron/preload.ts',
         onstart(options) {
           options.reload()
