@@ -1,7 +1,9 @@
 name: Docker (headless)
 
 # Builds the headless image, starts it and smoke-tests it over HTTP on every
-# push and PR. Publishes to ghcr.io/<owner>/<repo> only from main and v* tags.
+# push and PR. Publishes to ghcr.io/<owner>/<repo>: `latest` from main, semver
+# from v* tags, and a branch-named tag from feature/** (for testing on a server
+# before merging; never `latest`).
 
 on:
   push:
@@ -115,12 +117,13 @@ jobs:
 
       - name: Image metadata
         id: meta
-        if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+        if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/heads/feature/'))
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.IMAGE }}
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
+            type=ref,event=branch,enable=${{ startsWith(github.ref, 'refs/heads/feature/') }}
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=sha,format=short
