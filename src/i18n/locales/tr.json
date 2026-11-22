@@ -1253,5 +1253,11 @@
     "everyDay": "Günde bir kez",
     "everyLaunch": "Yalnızca uygulama açılırken",
     "everyNever": "Asla"
+  },
+  "web": {
+    "tooManyAttempts": "Çok fazla deneme. Birkaç dakika bekleyip tekrar deneyin.",
+    "serverFolderPrompt": "Sunucuda indirmelerin kaydedileceği klasör:",
+    "folderNotFound": "Bu klasör sunucuda yok veya müzik klasörlerinin dışında ({roots}).",
+    "folderOnServer": "Bu, sunucuda şurada: {path}"
   }
 }

@@ -1253,5 +1253,11 @@
     "everyDay": "하루에 한 번",
     "everyLaunch": "앱을 열 때만",
     "everyNever": "안 함"
+  },
+  "web": {
+    "tooManyAttempts": "시도 횟수가 너무 많습니다. 몇 분 후에 다시 시도하세요.",
+    "serverFolderPrompt": "다운로드를 저장할 서버의 폴더:",
+    "folderNotFound": "이 폴더가 서버에 없거나 음악 폴더({roots}) 밖에 있습니다.",
+    "folderOnServer": "서버의 다음 위치에 있습니다: {path}"
   }
 }

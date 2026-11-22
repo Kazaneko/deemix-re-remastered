@@ -1253,5 +1253,11 @@
     "everyDay": "Uma vez por dia",
     "everyLaunch": "Só ao abrir a aplicação",
     "everyNever": "Nunca"
+  },
+  "web": {
+    "tooManyAttempts": "Demasiadas tentativas. Aguarde alguns minutos e tente novamente.",
+    "serverFolderPrompt": "Pasta no servidor onde as transferências são guardadas:",
+    "folderNotFound": "Esta pasta não existe no servidor ou está fora das pastas de música ({roots}).",
+    "folderOnServer": "Isto está no servidor, em: {path}"
   }
 }

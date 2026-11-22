@@ -1253,5 +1253,11 @@
     "everyDay": "Jednom dnevno",
     "everyLaunch": "Samo pri otvaranju aplikacije",
     "everyNever": "Nikad"
+  },
+  "web": {
+    "tooManyAttempts": "Превише покушаја. Сачекајте неколико минута и покушајте поново.",
+    "serverFolderPrompt": "Фасцикла на серверу у коју се чувају преузимања:",
+    "folderNotFound": "Ова фасцикла не постоји на серверу или је ван музичких фасцикли ({roots}).",
+    "folderOnServer": "Ово се налази на серверу, у: {path}"
   }
 }

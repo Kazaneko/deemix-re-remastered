@@ -1253,5 +1253,11 @@
     "everyDay": "Jednom dnevno",
     "everyLaunch": "Samo pri otvaranju aplikacije",
     "everyNever": "Nikad"
+  },
+  "web": {
+    "tooManyAttempts": "Previše pokušaja. Pričekajte nekoliko minuta i pokušajte ponovno.",
+    "serverFolderPrompt": "Mapa na poslužitelju u koju se spremaju preuzimanja:",
+    "folderNotFound": "Ova mapa ne postoji na poslužitelju ili je izvan glazbenih mapa ({roots}).",
+    "folderOnServer": "Ovo se nalazi na poslužitelju, u: {path}"
   }
 }

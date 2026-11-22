@@ -1253,5 +1253,11 @@
     "everyDay": "每天一次",
     "everyLaunch": "仅在打开应用时",
     "everyNever": "从不"
+  },
+  "web": {
+    "tooManyAttempts": "尝试次数过多。请等待几分钟后重试。",
+    "serverFolderPrompt": "服务器上用于保存下载内容的文件夹：",
+    "folderNotFound": "该文件夹在服务器上不存在，或不在音乐文件夹（{roots}）内。",
+    "folderOnServer": "此项位于服务器上：{path}"
   }
 }
