@@ -88,9 +88,10 @@ jobs:
           curl -fsS -b jar -H 'Content-Type: application/json' -d '{"downloadPath":"/tmp"}' $B/api/settings >/dev/null
           curl -fsS -b jar $B/api/settings | grep -q '"downloadPath":"/music"'
 
-          echo "== event stream opens"
-          curl -s -b jar -N --max-time 3 $B/headless/events | grep -q 'retry:' || true
-          curl -s -b jar -N --max-time 3 -o /dev/null -w '%{content_type}\n' $B/headless/events | grep -q 'text/event-stream'
+          echo "== event stream opens (SSE never ends on its own: curl times out by design)"
+          curl -s -b jar -N --max-time 3 -D sse-headers -o sse-body $B/headless/events || true
+          grep -qi '^content-type: text/event-stream' sse-headers
+          grep -q '^retry:' sse-body
 
           echo "== Deezer API relay (informational: Deezer may block CI IPs)"
           curl -s -b jar --max-time 15 $B/headless/deezer-api/genre/0 | head -c 300 || true
